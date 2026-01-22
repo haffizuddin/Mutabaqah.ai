@@ -199,18 +199,18 @@ export default function MonitorPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <Radio className="h-6 w-6 text-white" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
+            <Radio className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Live Monitor</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">Live Monitor</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <p className="text-sm text-slate-500">Streaming live events</p>
+              <p className="text-xs sm:text-sm text-slate-500">Streaming live events</p>
             </div>
           </div>
         </div>
@@ -218,7 +218,7 @@ export default function MonitorPage() {
           size="sm"
           onClick={fetchLogs}
           disabled={loading}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 w-full sm:w-auto"
         >
           <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
@@ -226,47 +226,47 @@ export default function MonitorPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-4 grid-cols-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-slate-600" />
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              <p className="text-xs text-slate-500">Total Events</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</p>
+              <p className="text-xs text-slate-500">Total</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Info className="h-5 w-5 text-blue-600" />
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-blue-600">{stats.info}</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.info}</p>
               <p className="text-xs text-slate-500">Info</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-amber-600">{stats.warning}</p>
+              <p className="text-xl sm:text-2xl font-bold text-amber-600">{stats.warning}</p>
               <p className="text-xs text-slate-500">Warnings</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <XCircle className="h-5 w-5 text-red-600" />
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600">{stats.error}</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.error}</p>
               <p className="text-xs text-slate-500">Errors</p>
             </div>
           </div>
@@ -299,14 +299,14 @@ export default function MonitorPage() {
               return (
                 <div
                   key={log.id}
-                  className={`flex gap-4 px-5 py-4 border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${
+                  className={`flex gap-3 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${
                     index === 0 ? 'animate-slide-in bg-emerald-50/30' : ''
                   }`}
                 >
                   {/* Severity Indicator */}
-                  <div className="flex flex-col items-center pt-0.5">
-                    <div className={`w-8 h-8 rounded-full ${config.light} flex items-center justify-center`}>
-                      <Icon className={`h-4 w-4 ${config.color}`} />
+                  <div className="flex flex-col items-center pt-0.5 flex-shrink-0">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full ${config.light} flex items-center justify-center`}>
+                      <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${config.color}`} />
                     </div>
                     {index < filteredLogs.length - 1 && (
                       <div className="w-px flex-1 bg-slate-100 mt-2" />
@@ -315,24 +315,24 @@ export default function MonitorPage() {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-mono text-xs font-medium text-slate-700 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded truncate max-w-[120px] sm:max-w-none">
                         {log.eventType}
                       </span>
                       {log.transaction && (
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-400 hidden sm:inline truncate">
                           {log.transaction.transactionId}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-700">{log.message}</p>
-                    <div className="flex items-center gap-4 mt-1.5">
+                    <p className="text-xs sm:text-sm text-slate-700 line-clamp-2">{log.message}</p>
+                    <div className="flex items-center gap-2 sm:gap-4 mt-1.5 flex-wrap">
                       <div className="flex items-center gap-1.5">
                         <Clock className="h-3 w-3 text-slate-400" />
                         <span className="text-xs text-slate-400">{formatDateTime(log.timestamp)}</span>
                       </div>
                       {log.zetrixHash && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="hidden sm:flex items-center gap-1.5">
                           <Link2 className="h-3 w-3 text-violet-500" />
                           <span className="text-xs font-mono text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">
                             Zetrix: {log.zetrixHash.slice(0, 10)}...{log.zetrixHash.slice(-6)}
@@ -343,7 +343,7 @@ export default function MonitorPage() {
                   </div>
 
                   {/* Severity Badge */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 hidden sm:block">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                         log.severity === 'INFO'

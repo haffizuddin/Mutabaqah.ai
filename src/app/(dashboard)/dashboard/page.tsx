@@ -55,11 +55,11 @@ export default function DashboardPage() {
     fetchDashboardStats();
   }, []);
 
-  // Real-time event rotation effect
+  // Real-time event rotation effect - cycles through 8 entries
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentLogIndex((prev) => (prev + 1) % 4);
-    }, 5000);
+      setCurrentLogIndex((prev) => (prev + 1) % 8);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -77,7 +77,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Demo data
+  // Demo data with more entries for live effect
   const displayStats = stats || {
     totalTransactions: 1247,
     pendingTransactions: 23,
@@ -87,14 +87,21 @@ export default function DashboardPage() {
       { id: '1', transactionId: 'TXN-20250122-ABC123', customerName: 'Ahmad bin Abdullah', amount: '50000', status: 'COMPLETED', createdAt: '2025-01-22T10:30:00.000Z' },
       { id: '2', transactionId: 'TXN-20250122-DEF456', customerName: 'Fatimah binti Hassan', amount: '75000', status: 'PROCESSING', createdAt: '2025-01-22T09:15:00.000Z' },
       { id: '3', transactionId: 'TXN-20250121-GHI789', customerName: 'Muhammad Razak', amount: '100000', status: 'PENDING', createdAt: '2025-01-21T14:45:00.000Z' },
-      { id: '4', transactionId: 'TXN-20250121-JKL012', customerName: 'Aminah binti Yusof', amount: '35000', status: 'COMPLETED', createdAt: '2025-01-21T11:20:00.000Z' },
+      { id: '4', transactionId: 'TXN-20250121-JKL012', customerName: 'Aminah binti Yusof', amount: '25000', status: 'VIOLATION', createdAt: '2025-01-21T11:20:00.000Z' },
       { id: '5', transactionId: 'TXN-20250120-MNO345', customerName: 'Ibrahim Hassan', amount: '120000', status: 'COMPLETED', createdAt: '2025-01-20T16:00:00.000Z' },
+      { id: '6', transactionId: 'TXN-20250122-PQR678', customerName: 'Zainab binti Omar', amount: '85000', status: 'PROCESSING', createdAt: '2025-01-22T11:45:00.000Z' },
+      { id: '7', transactionId: 'TXN-20250122-STU901', customerName: 'Hafiz bin Ismail', amount: '45000', status: 'COMPLETED', createdAt: '2025-01-22T08:20:00.000Z' },
+      { id: '8', transactionId: 'TXN-20250121-VWX234', customerName: 'Nurul Aisyah', amount: '95000', status: 'PENDING', createdAt: '2025-01-21T15:30:00.000Z' },
     ],
     recentLogs: [
       { id: '1', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', severity: 'INFO', timestamp: '2025-01-22T10:30:00.000Z', customerName: 'Ahmad bin Abdullah', amount: '50000' },
       { id: '2', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:29:00.000Z', customerName: 'Fatimah binti Hassan', amount: '75000' },
       { id: '3', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', severity: 'INFO', timestamp: '2025-01-22T10:28:00.000Z', customerName: 'Muhammad Razak', amount: '100000' },
-      { id: '4', eventType: 'CERTIFICATE_ISSUED', message: 'Wakalah certificate issued', severity: 'INFO', timestamp: '2025-01-22T10:27:00.000Z', customerName: 'Ibrahim Hassan', amount: '120000' },
+      { id: '4', eventType: 'T1_FAILED', message: 'Qabd verification failed', severity: 'ERROR', timestamp: '2025-01-22T10:27:00.000Z', customerName: 'Aminah binti Yusof', amount: '25000' },
+      { id: '5', eventType: 'CERTIFICATE_ISSUED', message: 'Liquidation certificate issued', severity: 'INFO', timestamp: '2025-01-22T10:26:00.000Z', customerName: 'Ibrahim Hassan', amount: '120000' },
+      { id: '6', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:25:00.000Z', customerName: 'Zainab binti Omar', amount: '85000' },
+      { id: '7', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', severity: 'INFO', timestamp: '2025-01-22T10:24:00.000Z', customerName: 'Hafiz bin Ismail', amount: '45000' },
+      { id: '8', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', severity: 'INFO', timestamp: '2025-01-22T10:23:00.000Z', customerName: 'Nurul Aisyah', amount: '95000' },
     ],
   };
 

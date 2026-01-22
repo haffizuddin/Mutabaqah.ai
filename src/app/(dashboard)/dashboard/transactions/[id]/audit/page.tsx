@@ -722,20 +722,10 @@ export default function AuditTimelinePage() {
         <CardContent className="p-6">
           {transaction.aiAuditSummary ? (
             <div className="space-y-6">
-              {/* Score and Summary */}
-              <div className="flex items-start gap-6">
-                <div className="text-center">
-                  <div className="w-20 h-20 rounded-full border-4 border-slate-100 flex items-center justify-center">
-                    <span className={`text-3xl font-bold ${getScoreColor(transaction.aiAuditSummary.complianceScore)}`}>
-                      {transaction.aiAuditSummary.complianceScore}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">Compliance Score</p>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-slate-900 mb-2">Summary</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">{transaction.aiAuditSummary.summary}</p>
-                </div>
+              {/* Summary */}
+              <div>
+                <h4 className="font-medium text-slate-900 mb-2">Summary</h4>
+                <p className="text-sm text-slate-600 leading-relaxed">{transaction.aiAuditSummary.summary}</p>
               </div>
 
               {/* Findings */}

@@ -41,15 +41,26 @@ interface DashboardStats {
     message: string;
     severity: string;
     timestamp: string;
+    customerName?: string;
+    amount?: string;
   }>;
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentLogIndex, setCurrentLogIndex] = useState(0);
 
   useEffect(() => {
     fetchDashboardStats();
+  }, []);
+
+  // Real-time event rotation effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentLogIndex((prev) => (prev + 1) % 4);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -80,10 +91,10 @@ export default function DashboardPage() {
       { id: '5', transactionId: 'TXN-20250120-MNO345', customerName: 'Ibrahim Hassan', amount: '120000', status: 'COMPLETED', createdAt: '2025-01-20T16:00:00.000Z' },
     ],
     recentLogs: [
-      { id: '1', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed for TXN-20250122-ABC123', severity: 'INFO', timestamp: '2025-01-22T10:30:00.000Z' },
-      { id: '2', eventType: 'AI_AUDIT', message: 'AI audit completed - 98% compliance score', severity: 'INFO', timestamp: '2025-01-22T10:29:00.000Z' },
-      { id: '3', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:28:00.000Z' },
-      { id: '4', eventType: 'CERTIFICATE_ISSUED', message: 'Wakalah certificate issued', severity: 'INFO', timestamp: '2025-01-22T10:27:00.000Z' },
+      { id: '1', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', severity: 'INFO', timestamp: '2025-01-22T10:30:00.000Z', customerName: 'Ahmad bin Abdullah', amount: '50000' },
+      { id: '2', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:29:00.000Z', customerName: 'Fatimah binti Hassan', amount: '75000' },
+      { id: '3', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', severity: 'INFO', timestamp: '2025-01-22T10:28:00.000Z', customerName: 'Muhammad Razak', amount: '100000' },
+      { id: '4', eventType: 'CERTIFICATE_ISSUED', message: 'Wakalah certificate issued', severity: 'INFO', timestamp: '2025-01-22T10:27:00.000Z', customerName: 'Ibrahim Hassan', amount: '120000' },
     ],
   };
 
@@ -284,23 +295,47 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            {/* Current Event Highlight */}
+            {displayStats.recentLogs[currentLogIndex] && (
+              <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 transition-all duration-500">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+                    {displayStats.recentLogs[currentLogIndex].eventType}
+                  </span>
+                  <span className="text-xs text-emerald-600">{formatDateTime(displayStats.recentLogs[currentLogIndex].timestamp)}</span>
+                </div>
+                <p className="font-semibold text-slate-900 mb-1">{displayStats.recentLogs[currentLogIndex].customerName}</p>
+                <p className="text-lg font-bold text-emerald-700">{formatCurrency(parseFloat(displayStats.recentLogs[currentLogIndex].amount || '0'))}</p>
+                <p className="text-sm text-slate-600 mt-1">{displayStats.recentLogs[currentLogIndex].message}</p>
+              </div>
+            )}
+            <div className="space-y-3">
               {displayStats.recentLogs.map((log, index) => (
-                <div key={log.id} className="flex gap-3">
+                <div
+                  key={log.id}
+                  className={`flex gap-3 p-2 rounded-lg transition-all duration-300 ${index === currentLogIndex ? 'bg-emerald-50/50 border border-emerald-100' : ''}`}
+                >
                   <div className="flex flex-col items-center">
                     {getSeverityDot(log.severity)}
                     {index < displayStats.recentLogs.length - 1 && (
                       <div className="w-px h-full bg-slate-200 my-1" />
                     )}
                   </div>
-                  <div className="flex-1 pb-4">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                         {log.eventType}
                       </span>
+                      {log.amount && (
+                        <span className="text-xs font-semibold text-emerald-600">
+                          {formatCurrency(parseFloat(log.amount))}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-slate-700">{log.message}</p>
-                    <p className="text-xs text-slate-400 mt-1">{formatDateTime(log.timestamp)}</p>
+                    {log.customerName && (
+                      <p className="text-sm font-medium text-slate-800">{log.customerName}</p>
+                    )}
+                    <p className="text-xs text-slate-500">{log.message}</p>
                   </div>
                 </div>
               ))}

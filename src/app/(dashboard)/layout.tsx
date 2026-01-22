@@ -19,6 +19,7 @@ import {
   Search,
   Plus,
   HelpCircle,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,12 @@ export default function DashboardLayout({
   const { data: session } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut({ callbackUrl: '/login' });
+  };
 
   const userName = session?.user?.name || 'Demo User';
   const userEmail = session?.user?.email || 'demo@mutabaqah.ai';
@@ -165,11 +172,16 @@ export default function DashboardLayout({
                   </Link>
                   <div className="border-t border-slate-700 my-1"></div>
                   <button
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors disabled:opacity-50"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
                   >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
+                    {loggingOut ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogOut className="h-4 w-4" />
+                    )}
+                    {loggingOut ? 'Signing out...' : 'Sign out'}
                   </button>
                 </div>
               )}

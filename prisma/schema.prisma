@@ -80,7 +80,7 @@ model Transaction {
   transactionId   String            @unique // TXN-20250122-001
   customerName    String
   customerId      String
-  commodityType   CommodityType     @default(FCPO)
+  commodityType   CommodityType     @default(CPO)
   amount          Decimal           @db.Decimal(18, 2)
   currency        String            @default("MYR")
   status          TransactionStatus @default(PENDING)
@@ -121,7 +121,7 @@ model Certificate {
   id                String          @id @default(cuid())
   certificateNumber String          @unique
   type              CertificateType
-  issuedBy          String          @default("Bursa Malaysia")
+  issuedBy          String          @default("Bursa Suq As Sila")
   issuedAt          DateTime        @default(now())
   expiresAt         DateTime?
   data              Json            // Certificate details
@@ -174,7 +174,7 @@ enum UserRole {
 }
 
 enum CommodityType {
-  FCPO       // Crude Palm Oil Futures
+  CPO        // Crude Palm Oil
   FPOL       // RBD Palm Olein Futures
   FUPO       // USD Palm Olein Futures
   FGLD       // Gold Futures

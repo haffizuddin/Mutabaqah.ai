@@ -40,7 +40,7 @@ async function main() {
       transactionId: 'TXN-20250122-DEMO01',
       customerName: 'Ahmad bin Abdullah',
       customerId: 'CUS-001',
-      commodityType: 'FCPO' as const,
+      commodityType: 'CPO' as const,
       amount: 50000,
       status: 'COMPLETED' as const,
       shariahStatus: 'COMPLIANT' as const,
@@ -49,7 +49,7 @@ async function main() {
       transactionId: 'TXN-20250122-DEMO02',
       customerName: 'Fatimah binti Hassan',
       customerId: 'CUS-002',
-      commodityType: 'FCPO' as const,
+      commodityType: 'CPO' as const,
       amount: 75000,
       status: 'PROCESSING' as const,
       shariahStatus: 'PENDING_REVIEW' as const,
@@ -58,7 +58,7 @@ async function main() {
       transactionId: 'TXN-20250121-DEMO03',
       customerName: 'Muhammad Razak',
       customerId: 'CUS-003',
-      commodityType: 'FCPO' as const,
+      commodityType: 'CPO' as const,
       amount: 100000,
       status: 'PENDING' as const,
       shariahStatus: 'PENDING_REVIEW' as const,
@@ -100,7 +100,7 @@ async function main() {
             data: {
               certificateNumber: `CERT-${certType.substring(0, 3)}-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
               type: certType,
-              issuedBy: 'Bursa Malaysia',
+              issuedBy: 'Bursa Suq As Sila',
               data: {
                 transactionRef: transaction.transactionId,
                 generatedAt: new Date().toISOString(),
@@ -121,7 +121,7 @@ async function main() {
         await prisma.aiAuditSummary.create({
           data: {
             transactionId: transaction.id,
-            summary: `Tawarruq transaction ${txn.transactionId} for ${txn.customerName} involving FCPO commodity worth MYR ${txn.amount}. The transaction demonstrates excellent Shariah compliance with all stages properly executed.`,
+            summary: `Tawarruq transaction ${txn.transactionId} for ${txn.customerName} involving CPO worth MYR ${txn.amount}. The transaction demonstrates excellent Shariah compliance with all stages properly executed.`,
             complianceScore: 95,
             findings: [],
             recommendations: [

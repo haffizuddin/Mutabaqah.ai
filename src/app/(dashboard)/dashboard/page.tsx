@@ -233,7 +233,13 @@ export default function DashboardPage() {
         <Card className="lg:col-span-3 bg-white border border-slate-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Recent Transactions
+              </CardTitle>
               <CardDescription>Latest Tawarruq commodity purchases</CardDescription>
             </div>
             <Link href="/dashboard/transactions">
@@ -245,31 +251,58 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {displayStats.recentTransactions.map((txn) => (
-                <Link
-                  key={txn.id}
-                  href={`/dashboard/transactions/${txn.id}/audit`}
-                  className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 hover:bg-slate-100 transition-all duration-200 group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-green-500/25">
-                      {txn.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {displayStats.recentTransactions.map((txn) => {
+                const isActive = displayStats.recentLogs[currentLogIndex]?.customerName === txn.customerName;
+                return (
+                  <Link
+                    key={txn.id}
+                    href={`/dashboard/transactions/${txn.id}/audit`}
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all duration-500 group ${
+                      isActive
+                        ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 shadow-lg shadow-emerald-100 scale-[1.02]'
+                        : 'bg-slate-50/50 hover:bg-slate-100 border-2 border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg ${
+                        isActive
+                          ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/40'
+                          : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/25'
+                      }`}>
+                        {txn.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {isActive && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className={`font-semibold transition-colors ${isActive ? 'text-emerald-700' : 'text-slate-900 group-hover:text-green-600'}`}>
+                          {txn.customerName}
+                        </p>
+                        <p className="text-sm text-slate-500">{txn.transactionId}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-900 group-hover:text-green-600 transition-colors">{txn.customerName}</p>
-                      <p className="text-sm text-slate-500">{txn.transactionId}</p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className={`font-bold ${isActive ? 'text-emerald-700' : 'text-slate-900'}`}>
+                          {formatCurrency(parseFloat(txn.amount))}
+                        </p>
+                        <p className="text-xs text-slate-400">{formatDateTime(txn.createdAt)}</p>
+                      </div>
+                      {isActive ? (
+                        <Badge variant="success" className="animate-pulse">
+                          LIVE
+                        </Badge>
+                      ) : (
+                        getStatusBadge(txn.status)
+                      )}
+                      <Eye className={`h-4 w-4 transition-opacity ${isActive ? 'text-emerald-500 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'}`} />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-bold text-slate-900">{formatCurrency(parseFloat(txn.amount))}</p>
-                      <p className="text-xs text-slate-400">{formatDateTime(txn.createdAt)}</p>
-                    </div>
-                    {getStatusBadge(txn.status)}
-                    <Eye className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Plus, Search, Eye, Filter, Download, RefreshCw, ChevronRight, AlertTriangle } from 'lucide-react';
@@ -27,7 +27,25 @@ interface LiveActivity {
 
 type TabType = 'active' | 'completed';
 
+// Loading fallback for Suspense
+function TransactionsLoading() {
+  return (
+    <div className="flex items-center justify-center h-96">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+    </div>
+  );
+}
+
+// Main component wrapped in Suspense
 export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<TransactionsLoading />}>
+      <TransactionsContent />
+    </Suspense>
+  );
+}
+
+function TransactionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') || '';

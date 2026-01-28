@@ -47,9 +47,10 @@ export default function DashboardLayout({
     await signOut({ callbackUrl: '/login' });
   };
 
-  const userName = session?.user?.name || 'Demo User';
-  const userEmail = session?.user?.email || 'demo@mutabaqah.ai';
-  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  // Always show Admin for demo purposes
+  const userName = 'Admin';
+  const userEmail = 'admin@mutabaqah.ai';
+  const userInitials = 'AD';
 
   return (
     <div className="min-h-screen bg-white">

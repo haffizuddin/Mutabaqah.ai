@@ -40,9 +40,9 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemoCredentials = () => {
-    setEmail('demo@mutabaqah.ai');
-    setPassword('demo123');
+  const fillAdminCredentials = () => {
+    setEmail('admin@mutabaqah.ai');
+    setPassword('admin123');
   };
 
   return (
@@ -70,16 +70,16 @@ export default function LoginPage() {
 
           {/* Login Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            {/* Demo Banner */}
+            {/* Admin Banner */}
             <button
               type="button"
-              onClick={fillDemoCredentials}
+              onClick={fillAdminCredentials}
               className="w-full mb-6 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors text-left"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Demo Account</p>
-                  <p className="text-xs text-slate-500 mt-0.5">demo@mutabaqah.ai / demo123</p>
+                  <p className="text-sm font-medium text-slate-700">Admin Account</p>
+                  <p className="text-xs text-slate-500 mt-0.5">admin@mutabaqah.ai / admin123</p>
                 </div>
                 <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                   Click to fill

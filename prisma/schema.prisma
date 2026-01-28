@@ -85,12 +85,14 @@ model Transaction {
   currency        String            @default("MYR")
   status          TransactionStatus @default(PENDING)
   shariahStatus   ShariahStatus     @default(PENDING_REVIEW)
+  violationCount  Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  auditEvents      AuditEvent[]
-  auditLogs        AuditLog[]
-  aiAuditSummary   AiAuditSummary?
+  auditEvents           AuditEvent[]
+  auditLogs             AuditLog[]
+  aiAuditSummary        AiAuditSummary?
+  violationResolutions  ViolationResolution[]
 
   @@index([customerId])
   @@index([status])
@@ -161,6 +163,23 @@ model AiAuditSummary {
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@map("ai_audit_summaries")
+}
+
+model ViolationResolution {
+  id              String     @id @default(cuid())
+  transactionId   String
+  originalStage   AuditStage // Stage that failed
+  resolutionNotes String     @db.Text
+  resolvedBy      String
+  resolvedAt      DateTime   @default(now())
+  aiReanalysis    Json?      // AI-generated reanalysis
+  reprocessed     Boolean    @default(false)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([resolvedAt])
+  @@map("violation_resolutions")
 }
 
 // ============================================

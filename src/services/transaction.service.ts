@@ -331,3 +331,256 @@ export async function getDashboardStats() {
     recentTransactions,
   };
 }
+
+// ===========================================
+// Violation Resolution Service
+// ===========================================
+
+export interface ResolveViolationInput {
+  transactionId: string;
+  notes: string;
+  userId: string;
+}
+
+/**
+ * Validates the stage order based on completedAt timestamps.
+ * Returns which stages are out of order.
+ */
+export async function validateStageOrder(transactionId: string) {
+  const auditEvents = await prisma.auditEvent.findMany({
+    where: { transactionId },
+    orderBy: { stage: 'asc' },
+  });
+
+  const stageOrder: AuditStage[] = ['T0', 'T1', 'T2'];
+  const outOfOrder: AuditStage[] = [];
+  let lastCompletedTime: Date | null = null;
+
+  for (const stage of stageOrder) {
+    const event = auditEvents.find((e) => e.stage === stage);
+    if (event?.completedAt) {
+      if (lastCompletedTime && event.completedAt < lastCompletedTime) {
+        outOfOrder.push(stage);
+      }
+      lastCompletedTime = event.completedAt;
+    }
+  }
+
+  // Check if any later stage completed before an earlier stage even started
+  for (let i = 0; i < stageOrder.length; i++) {
+    const currentEvent = auditEvents.find((e) => e.stage === stageOrder[i]);
+    for (let j = i + 1; j < stageOrder.length; j++) {
+      const laterEvent = auditEvents.find((e) => e.stage === stageOrder[j]);
+      if (
+        laterEvent?.completedAt &&
+        (!currentEvent?.completedAt || laterEvent.completedAt < currentEvent.completedAt)
+      ) {
+        if (!outOfOrder.includes(stageOrder[j])) {
+          outOfOrder.push(stageOrder[j]);
+        }
+      }
+    }
+  }
+
+  return {
+    isValid: outOfOrder.length === 0,
+    outOfOrder,
+    auditEvents,
+  };
+}
+
+/**
+ * Resolves a violation by creating a resolution record,
+ * generating AI reanalysis, and re-queuing for processing.
+ */
+export async function resolveViolation(input: ResolveViolationInput) {
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: input.transactionId },
+    include: {
+      auditEvents: {
+        orderBy: { stage: 'asc' },
+      },
+    },
+  });
+
+  if (!transaction) {
+    throw new Error('Transaction not found');
+  }
+
+  if (transaction.status !== 'VIOLATION') {
+    throw new Error('Transaction is not in VIOLATION status');
+  }
+
+  // Find the failed stage
+  const failedEvent = transaction.auditEvents.find((e) => e.status === 'FAILED');
+  if (!failedEvent) {
+    throw new Error('No failed stage found');
+  }
+
+  // Validate stage order
+  const { isValid, outOfOrder } = await validateStageOrder(input.transactionId);
+
+  // Generate AI reanalysis
+  const aiReanalysis = {
+    originalIssue: `Stage ${failedEvent.stage} failed`,
+    resolutionNotes: input.notes,
+    timestamp: new Date().toISOString(),
+    stageOrderValid: isValid,
+    outOfOrderStages: outOfOrder,
+    recommendation: isValid
+      ? 'Re-process from failed stage'
+      : 'Reset out-of-order stages and re-process in correct sequence',
+  };
+
+  // Create violation resolution record
+  const resolution = await prisma.violationResolution.create({
+    data: {
+      transactionId: input.transactionId,
+      originalStage: failedEvent.stage,
+      resolutionNotes: input.notes,
+      resolvedBy: input.userId,
+      aiReanalysis,
+      reprocessed: false,
+    },
+  });
+
+  // Increment violation count
+  await prisma.transaction.update({
+    where: { id: input.transactionId },
+    data: {
+      violationCount: { increment: 1 },
+    },
+  });
+
+  // Determine which stages to reset
+  const stagesToReset: AuditStage[] = [];
+
+  if (!isValid && outOfOrder.length > 0) {
+    // Reset stages that are out of order
+    const stageOrder: AuditStage[] = ['T0', 'T1', 'T2'];
+    const firstOutOfOrderIndex = Math.min(
+      ...outOfOrder.map((s) => stageOrder.indexOf(s))
+    );
+    // Reset from the first out-of-order stage onwards
+    for (let i = firstOutOfOrderIndex; i < stageOrder.length; i++) {
+      stagesToReset.push(stageOrder[i]);
+    }
+  } else {
+    // Reset from failed stage onwards
+    const stageOrder: AuditStage[] = ['T0', 'T1', 'T2'];
+    const failedIndex = stageOrder.indexOf(failedEvent.stage);
+    for (let i = failedIndex; i < stageOrder.length; i++) {
+      stagesToReset.push(stageOrder[i]);
+    }
+  }
+
+  // Reset the stages
+  for (const stage of stagesToReset) {
+    await prisma.auditEvent.updateMany({
+      where: {
+        transactionId: input.transactionId,
+        stage,
+      },
+      data: {
+        status: 'PENDING',
+        completedAt: null,
+        certificateId: null,
+      },
+    });
+  }
+
+  // Update transaction status to PROCESSING
+  await prisma.transaction.update({
+    where: { id: input.transactionId },
+    data: {
+      status: 'PROCESSING',
+      shariahStatus: 'PENDING_REVIEW',
+    },
+  });
+
+  // Mark resolution as reprocessed
+  await prisma.violationResolution.update({
+    where: { id: resolution.id },
+    data: { reprocessed: true },
+  });
+
+  // Log the resolution
+  await prisma.auditLog.create({
+    data: {
+      transactionId: input.transactionId,
+      eventType: 'VIOLATION_RESOLVED',
+      message: `Violation resolved by ${input.userId}. Stages reset: ${stagesToReset.join(', ')}`,
+      severity: 'INFO',
+      metadata: {
+        resolutionId: resolution.id,
+        stagesToReset,
+        notes: input.notes,
+      },
+    },
+  });
+
+  return {
+    resolution,
+    stagesToReset,
+    aiReanalysis,
+  };
+}
+
+/**
+ * Get violation history for a transaction.
+ */
+export async function getViolationHistory(transactionId: string) {
+  const resolutions = await prisma.violationResolution.findMany({
+    where: { transactionId },
+    orderBy: { resolvedAt: 'desc' },
+  });
+
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      violationCount: true,
+      transactionId: true,
+      customerName: true,
+    },
+  });
+
+  return {
+    transaction,
+    resolutions,
+    totalViolations: transaction?.violationCount || 0,
+  };
+}
+
+/**
+ * Get recent violations across all transactions.
+ */
+export async function getRecentViolations(limit: number = 5) {
+  const violations = await prisma.transaction.findMany({
+    where: { status: 'VIOLATION' },
+    orderBy: { updatedAt: 'desc' },
+    take: limit,
+    include: {
+      auditEvents: {
+        orderBy: { stage: 'asc' },
+      },
+      violationResolutions: {
+        orderBy: { resolvedAt: 'desc' },
+        take: 1,
+      },
+    },
+  });
+
+  return violations.map((txn) => {
+    const failedEvent = txn.auditEvents.find((e) => e.status === 'FAILED');
+    return {
+      id: txn.id,
+      transactionId: txn.transactionId,
+      customerName: txn.customerName,
+      amount: txn.amount.toString(),
+      failedStage: failedEvent?.stage || 'Unknown',
+      violationCount: txn.violationCount,
+      lastResolution: txn.violationResolutions[0] || null,
+      updatedAt: txn.updatedAt,
+    };
+  });
+}

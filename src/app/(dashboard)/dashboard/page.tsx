@@ -1,152 +1,215 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
-  FileText,
   AlertTriangle,
   CheckCircle,
   Clock,
   ArrowRight,
-  TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
   BarChart3,
   Zap,
   Shield,
   Eye,
+  RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
-
-interface DashboardStats {
-  totalTransactions: number;
-  pendingTransactions: number;
-  completedTransactions: number;
-  violationTransactions: number;
-  recentTransactions: Array<{
-    id: string;
-    transactionId: string;
-    customerName: string;
-    amount: string;
-    status: string;
-    createdAt: string;
-  }>;
-  recentLogs: Array<{
-    id: string;
-    eventType: string;
-    message: string;
-    severity: string;
-    timestamp: string;
-    customerName?: string;
-    amount?: string;
-  }>;
-}
+import LiveActivityFeed from '@/components/dashboard/LiveActivityFeed';
+import {
+  demoTransactions,
+  getDemoStats,
+  DemoTransaction,
+} from '@/data/demo-transactions';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [displayedTransactions, setDisplayedTransactions] = useState<DemoTransaction[]>([]);
   const [currentLogIndex, setCurrentLogIndex] = useState(0);
+  const [rotationIndex, setRotationIndex] = useState(0);
+  const [autoResolvedCount] = useState(7);
 
+  // Get stats from demo data
+  const stats = useMemo(() => getDemoStats(), []);
+
+  // Pool of transactions (use ref to avoid re-render loops)
+  const poolRef = useRef<DemoTransaction[]>([]);
+  const isInitialized = useRef(false);
+
+  // Shuffle array function
+  const shuffleArray = (array: DemoTransaction[]): DemoTransaction[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Initialize displayed transactions and pool (only once)
   useEffect(() => {
-    fetchDashboardStats();
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    const shuffled = shuffleArray(demoTransactions);
+    setDisplayedTransactions(shuffled.slice(0, 10));
+    poolRef.current = shuffled.slice(10);
   }, []);
 
-  // Real-time event rotation effect - cycles through 8 entries
+  // Rotate transactions - pick random from pool, add to top
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentLogIndex((prev) => (prev + 1) % 8);
+      const pool = poolRef.current;
+      if (!pool || pool.length === 0) return;
+
+      setDisplayedTransactions((current) => {
+        if (!current || current.length === 0) return current;
+
+        // Pick random transaction from pool
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        const nextTxn = pool[randomIndex];
+
+        // Safety check
+        if (!nextTxn) return current;
+
+        // Swap: remove picked from pool, add removed item back
+        const removedTxn = current[current.length - 1];
+        if (removedTxn) {
+          poolRef.current = [
+            ...pool.slice(0, randomIndex),
+            ...pool.slice(randomIndex + 1),
+            removedTxn,
+          ];
+        }
+
+        // Add new at top, remove last
+        return [nextTxn, ...current.slice(0, 9)];
+      });
+
+      setRotationIndex((prev) => prev + 1);
     }, 3000);
+
     return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardStats = async () => {
-    try {
-      const response = await fetch('/api/dashboard');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Generate live activity logs from displayed transactions
+  const recentLogs = useMemo(() => {
+    return displayedTransactions.slice(0, 8).map((txn) => {
+      const latestEvent = txn.auditEvents.find(
+        (e) => e.status === 'COMPLETED' || e.status === 'IN_PROGRESS' || e.status === 'FAILED'
+      );
 
-  // Demo data with more entries for live effect
-  const displayStats = stats || {
-    totalTransactions: 1247,
-    pendingTransactions: 23,
-    completedTransactions: 1189,
-    violationTransactions: 5,
-    recentTransactions: [
-      { id: '1', transactionId: 'TXN-20250122-ABC123', customerName: 'Ahmad bin Abdullah', amount: '50000', status: 'COMPLETED', createdAt: '2025-01-22T10:30:00.000Z' },
-      { id: '2', transactionId: 'TXN-20250122-DEF456', customerName: 'Fatimah binti Hassan', amount: '75000', status: 'PROCESSING', createdAt: '2025-01-22T09:15:00.000Z' },
-      { id: '3', transactionId: 'TXN-20250121-GHI789', customerName: 'Muhammad Razak', amount: '100000', status: 'PENDING', createdAt: '2025-01-21T14:45:00.000Z' },
-      { id: '4', transactionId: 'TXN-20250121-JKL012', customerName: 'Aminah binti Yusof', amount: '25000', status: 'VIOLATION', createdAt: '2025-01-21T11:20:00.000Z' },
-      { id: '5', transactionId: 'TXN-20250120-MNO345', customerName: 'Ibrahim Hassan', amount: '120000', status: 'COMPLETED', createdAt: '2025-01-20T16:00:00.000Z' },
-      { id: '6', transactionId: 'TXN-20250122-PQR678', customerName: 'Zainab binti Omar', amount: '85000', status: 'PROCESSING', createdAt: '2025-01-22T11:45:00.000Z' },
-      { id: '7', transactionId: 'TXN-20250122-STU901', customerName: 'Hafiz bin Ismail', amount: '45000', status: 'COMPLETED', createdAt: '2025-01-22T08:20:00.000Z' },
-      { id: '8', transactionId: 'TXN-20250121-VWX234', customerName: 'Nurul Aisyah', amount: '95000', status: 'PENDING', createdAt: '2025-01-21T15:30:00.000Z' },
-    ],
-    recentLogs: [
-      { id: '1', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', severity: 'INFO', timestamp: '2025-01-22T10:30:00.000Z', customerName: 'Ahmad bin Abdullah', amount: '50000' },
-      { id: '2', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:29:00.000Z', customerName: 'Fatimah binti Hassan', amount: '75000' },
-      { id: '3', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', severity: 'INFO', timestamp: '2025-01-22T10:28:00.000Z', customerName: 'Muhammad Razak', amount: '100000' },
-      { id: '4', eventType: 'T1_FAILED', message: 'Qabd verification failed', severity: 'ERROR', timestamp: '2025-01-22T10:27:00.000Z', customerName: 'Aminah binti Yusof', amount: '25000' },
-      { id: '5', eventType: 'CERTIFICATE_ISSUED', message: 'Liquidation certificate issued', severity: 'INFO', timestamp: '2025-01-22T10:26:00.000Z', customerName: 'Ibrahim Hassan', amount: '120000' },
-      { id: '6', eventType: 'T1_COMPLETED', message: 'Qabd confirmed - commodity purchased', severity: 'INFO', timestamp: '2025-01-22T10:25:00.000Z', customerName: 'Zainab binti Omar', amount: '85000' },
-      { id: '7', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', severity: 'INFO', timestamp: '2025-01-22T10:24:00.000Z', customerName: 'Hafiz bin Ismail', amount: '45000' },
-      { id: '8', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', severity: 'INFO', timestamp: '2025-01-22T10:23:00.000Z', customerName: 'Nurul Aisyah', amount: '95000' },
-    ],
-  };
+      const eventType = latestEvent
+        ? `${latestEvent.stage}_${latestEvent.status}`
+        : 'SYSTEM_UPDATE';
 
-  const statCards = [
+      const messages: Record<string, string> = {
+        'T0_COMPLETED': 'Wakalah agreement signed',
+        'T1_COMPLETED': 'Qabd confirmed',
+        'T2_COMPLETED': 'Murabahah completed',
+        'T0_IN_PROGRESS': 'Processing Wakalah',
+        'T1_IN_PROGRESS': 'Processing Qabd',
+        'T2_IN_PROGRESS': 'Processing Liquidation',
+        'T0_FAILED': 'Wakalah verification failed',
+        'T1_FAILED': 'Qabd verification failed',
+        'T2_FAILED': 'Liquidation verification failed',
+        'T0_PENDING': 'Awaiting Wakalah',
+      };
+
+      return {
+        id: `log-${txn.id}`,
+        eventType,
+        message: messages[eventType] || 'Transaction processing',
+        severity: latestEvent?.status === 'FAILED' ? 'ERROR' : 'INFO',
+        timestamp: txn.updatedAt,
+        customerName: txn.customerName,
+        amount: txn.amount,
+      };
+    });
+  }, [displayedTransactions]);
+
+  // Cycle through current active item
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentLogIndex((prev) => (prev + 1) % Math.max(recentLogs.length, 1));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [recentLogs.length]);
+
+  const handleViolationsCardClick = useCallback(() => {
+    router.push('/dashboard/transactions?status=VIOLATION');
+  }, [router]);
+
+  const handleAutoResolvedClick = useCallback(() => {
+    router.push('/dashboard/auto-resolved');
+  }, [router]);
+
+  // Memoized stat cards
+  const statCards = useMemo(() => [
     {
       title: 'Total Transactions',
-      value: displayStats.totalTransactions.toLocaleString(),
+      value: stats.totalTransactions.toLocaleString(),
       change: '+12.5%',
       trend: 'up',
       icon: BarChart3,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
       iconBg: 'bg-blue-500',
+      clickable: false,
     },
     {
       title: 'Pending Review',
-      value: displayStats.pendingTransactions.toString(),
+      value: stats.pendingTransactions.toString(),
       change: '-3',
       trend: 'down',
       icon: Clock,
       color: 'from-amber-500 to-orange-500',
       bgColor: 'bg-amber-50',
       iconBg: 'bg-amber-500',
+      clickable: false,
     },
     {
       title: 'Completed',
-      value: displayStats.completedTransactions.toLocaleString(),
+      value: stats.completedTransactions.toLocaleString(),
       change: '+18',
       trend: 'up',
       icon: CheckCircle,
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-50',
       iconBg: 'bg-green-500',
+      clickable: false,
     },
     {
       title: 'Violations',
-      value: displayStats.violationTransactions.toString(),
+      value: stats.violationTransactions.toString(),
       change: '0',
       trend: 'neutral',
       icon: AlertTriangle,
       color: 'from-red-500 to-rose-500',
       bgColor: 'bg-red-50',
       iconBg: 'bg-red-500',
+      clickable: true,
+      onClick: handleViolationsCardClick,
     },
-  ];
+    {
+      title: 'Auto Resolved',
+      value: autoResolvedCount.toString(),
+      change: '+5',
+      trend: 'up',
+      icon: RotateCcw,
+      color: 'from-purple-500 to-violet-500',
+      bgColor: 'bg-purple-50',
+      iconBg: 'bg-purple-500',
+      clickable: true,
+      onClick: handleAutoResolvedClick,
+    },
+  ], [stats, handleViolationsCardClick, handleAutoResolvedClick, autoResolvedCount]);
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { variant: 'success' | 'warning' | 'info' | 'error'; label: string }> = {
@@ -158,30 +221,6 @@ export default function DashboardPage() {
     const { variant, label } = config[status] || { variant: 'secondary' as const, label: status };
     return <Badge variant={variant}>{label}</Badge>;
   };
-
-  const getSeverityDot = (severity: string) => {
-    const colors: Record<string, string> = {
-      INFO: 'bg-blue-500',
-      WARNING: 'bg-amber-500',
-      ERROR: 'bg-red-500',
-      CRITICAL: 'bg-red-700',
-    };
-    return <span className={`w-2 h-2 rounded-full ${colors[severity] || 'bg-gray-500'}`} />;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-full border-4 border-green-200 animate-spin border-t-green-500" />
-            <Shield className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-green-600" />
-          </div>
-          <p className="text-slate-500 font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -202,9 +241,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {statCards.map((stat) => (
-          <Card key={stat.title} className="relative overflow-hidden bg-white border border-slate-200 shadow-sm">
+          <Card
+            key={stat.title}
+            className={`relative overflow-hidden bg-white border border-slate-200 shadow-sm ${
+              stat.clickable ? 'cursor-pointer hover:shadow-md hover:border-slate-300 transition-all' : ''
+            }`}
+            onClick={stat.clickable ? stat.onClick : undefined}
+          >
             <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full bg-gradient-to-br ${stat.color} opacity-10`} />
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
@@ -229,15 +274,22 @@ export default function DashboardPage() {
                   <stat.icon className="h-6 w-6 text-white" />
                 </div>
               </div>
+              {stat.clickable && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <span className={`text-xs font-medium flex items-center gap-1 ${stat.title === 'Violations' ? 'text-red-600' : 'text-purple-600'}`}>
+                    Click to view {stat.title.toLowerCase()} <ArrowRight className="h-3 w-3" />
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-6 lg:grid-cols-5 items-stretch">
         {/* Recent Transactions - Takes 3 columns */}
-        <Card className="lg:col-span-3 bg-white border border-slate-200 shadow-sm">
+        <Card className="lg:col-span-3 bg-white border border-slate-200 shadow-sm flex flex-col overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -256,44 +308,49 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {displayStats.recentTransactions.map((txn) => {
-                const isActive = displayStats.recentLogs[currentLogIndex]?.customerName === txn.customerName;
+          <CardContent className="flex-1 overflow-hidden">
+            <div className="space-y-2">
+              {displayedTransactions.map((txn, index) => {
+                const isActive = recentLogs[currentLogIndex]?.customerName === txn.customerName;
+                const isNew = index === 0;
                 return (
                   <Link
-                    key={txn.id}
+                    key={`${txn.id}-${rotationIndex}`}
                     href={`/dashboard/transactions/${txn.id}/audit`}
-                    className={`flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-500 group ${
+                    className={`flex items-center justify-between p-3 rounded-xl transition-all duration-500 group ${
                       isActive
-                        ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 shadow-lg shadow-emerald-100 sm:scale-[1.02]'
+                        ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 shadow-lg shadow-emerald-100 scale-[1.02]'
+                        : isNew
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 animate-pulse'
                         : 'bg-slate-50/50 hover:bg-slate-100 border-2 border-transparent'
                     }`}
                   >
-                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                      <div className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0 ${
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`relative w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-lg flex-shrink-0 ${
                         isActive
                           ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/40'
+                          : isNew
+                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/40'
                           : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/25'
                       }`}>
                         {txn.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        {isActive && (
-                          <span className="absolute -top-1 -right-1 flex h-2 w-2 sm:h-3 sm:w-3">
+                        {(isActive || isNew) && (
+                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 sm:h-3 sm:w-3 bg-emerald-500"></span>
+                            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isNew ? 'bg-blue-500' : 'bg-emerald-500'}`}></span>
                           </span>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className={`font-semibold text-sm sm:text-base transition-colors truncate ${isActive ? 'text-emerald-700' : 'text-slate-900 group-hover:text-green-600'}`}>
+                        <p className={`font-semibold text-sm transition-colors truncate ${isActive ? 'text-emerald-700' : isNew ? 'text-blue-700' : 'text-slate-900 group-hover:text-green-600'}`}>
                           {txn.customerName}
                         </p>
-                        <p className="text-xs sm:text-sm text-slate-500 truncate">{txn.transactionId}</p>
+                        <p className="text-xs text-slate-500 truncate">{txn.transactionId}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div className="text-right">
-                        <p className={`font-bold text-sm sm:text-base ${isActive ? 'text-emerald-700' : 'text-slate-900'}`}>
+                        <p className={`font-bold text-sm ${isActive ? 'text-emerald-700' : isNew ? 'text-blue-700' : 'text-slate-900'}`}>
                           {formatCurrency(parseFloat(txn.amount))}
                         </p>
                         <p className="text-xs text-slate-400 hidden sm:block">{formatDateTime(txn.createdAt)}</p>
@@ -301,6 +358,10 @@ export default function DashboardPage() {
                       {isActive ? (
                         <Badge variant="success" className="animate-pulse text-xs">
                           LIVE
+                        </Badge>
+                      ) : isNew ? (
+                        <Badge className="bg-blue-100 text-blue-700 text-xs">
+                          NEW
                         </Badge>
                       ) : (
                         <span className="hidden sm:inline">{getStatusBadge(txn.status)}</span>
@@ -315,73 +376,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Activity Feed - Takes 2 columns */}
-        <Card className="lg:col-span-2 bg-white border border-slate-200 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Live Activity
-              </CardTitle>
-              <CardDescription>Real-time system events</CardDescription>
-            </div>
-            <Link href="/dashboard/monitor">
-              <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50">
-                Monitor
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {/* Current Event Highlight */}
-            {displayStats.recentLogs[currentLogIndex] && (
-              <div className="mb-4 p-3 sm:p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 transition-all duration-500">
-                <div className="flex items-center justify-between mb-2 gap-2">
-                  <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 truncate">
-                    {displayStats.recentLogs[currentLogIndex].eventType}
-                  </span>
-                  <span className="text-xs text-emerald-600 flex-shrink-0 hidden sm:block">{formatDateTime(displayStats.recentLogs[currentLogIndex].timestamp)}</span>
-                </div>
-                <p className="font-semibold text-slate-900 mb-1 text-sm sm:text-base truncate">{displayStats.recentLogs[currentLogIndex].customerName}</p>
-                <p className="text-base sm:text-lg font-bold text-emerald-700">{formatCurrency(parseFloat(displayStats.recentLogs[currentLogIndex].amount || '0'))}</p>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1 line-clamp-2">{displayStats.recentLogs[currentLogIndex].message}</p>
-              </div>
-            )}
-            <div className="space-y-2 sm:space-y-3">
-              {displayStats.recentLogs.map((log, index) => (
-                <div
-                  key={log.id}
-                  className={`flex gap-2 sm:gap-3 p-2 rounded-lg transition-all duration-300 ${index === currentLogIndex ? 'bg-emerald-50/50 border border-emerald-100' : ''}`}
-                >
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    {getSeverityDot(log.severity)}
-                    {index < displayStats.recentLogs.length - 1 && (
-                      <div className="w-px h-full bg-slate-200 my-1" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-2 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-mono px-1.5 sm:px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 truncate">
-                        {log.eventType}
-                      </span>
-                      {log.amount && (
-                        <span className="text-xs font-semibold text-emerald-600 flex-shrink-0">
-                          {formatCurrency(parseFloat(log.amount))}
-                        </span>
-                      )}
-                    </div>
-                    {log.customerName && (
-                      <p className="text-xs sm:text-sm font-medium text-slate-800 truncate">{log.customerName}</p>
-                    )}
-                    <p className="text-xs text-slate-500 line-clamp-1">{log.message}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <LiveActivityFeed logs={recentLogs} currentIndex={currentLogIndex} />
       </div>
 
       {/* Compliance Overview */}
@@ -397,7 +392,9 @@ export default function DashboardPage() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-700">98.2%</p>
+                <p className="text-2xl font-bold text-green-700">
+                  {((stats.completedTransactions / stats.totalTransactions) * 100).toFixed(1)}%
+                </p>
                 <p className="text-sm text-green-600">Overall Compliance Rate</p>
               </div>
             </div>
@@ -406,7 +403,7 @@ export default function DashboardPage() {
                 <Shield className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-blue-700">1,189</p>
+                <p className="text-2xl font-bold text-blue-700">{stats.completedTransactions.toLocaleString()}</p>
                 <p className="text-sm text-blue-600">Verified Transactions</p>
               </div>
             </div>
@@ -415,7 +412,7 @@ export default function DashboardPage() {
                 <Activity className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-amber-700">23</p>
+                <p className="text-2xl font-bold text-amber-700">{stats.pendingTransactions}</p>
                 <p className="text-sm text-amber-600">Pending AI Review</p>
               </div>
             </div>

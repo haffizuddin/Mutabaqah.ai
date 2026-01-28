@@ -53,7 +53,7 @@ export default function LandingPage() {
             </Link>
             <Link href="/login">
               <Button size="lg" variant="outline" className="text-lg px-8">
-                View Demo Dashboard
+                Login
               </Button>
             </Link>
           </div>

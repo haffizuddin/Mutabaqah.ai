@@ -27,12 +27,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('Email and password are required');
         }
 
-        // Demo account (works without database)
-        if (credentials.email === 'demo@mutabaqah.ai' && credentials.password === 'demo123') {
+        // Admin account (works without database)
+        if (credentials.email === 'admin@mutabaqah.ai' && credentials.password === 'admin123') {
           return {
-            id: 'demo-user-001',
-            email: 'demo@mutabaqah.ai',
-            name: 'Demo Admin',
+            id: 'admin-user-001',
+            email: 'admin@mutabaqah.ai',
+            name: 'Admin',
             role: 'ADMIN',
           };
         }
@@ -63,8 +63,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: user.role,
           };
         } catch {
-          // If database not connected, only demo account works
-          throw new Error('Invalid email or password. Use demo@mutabaqah.ai / demo123');
+          // If database not connected, only admin account works
+          throw new Error('Invalid email or password. Use admin@mutabaqah.ai / admin123');
         }
       },
     }),

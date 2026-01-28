@@ -1,222 +1,139 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Eye, Filter, FileText, Download, RefreshCw, ChevronRight, Activity } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Plus, Search, Eye, Filter, Download, RefreshCw, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { useDebounce } from '@/hooks/useDebounce';
+import ViolationResolveDialog from '@/components/violations/ViolationResolveDialog';
+import {
+  demoTransactions,
+  getDemoStats,
+  DemoTransaction,
+} from '@/data/demo-transactions';
 
-// Live activity logs for sync
-const liveActivityLogs = [
-  { customerName: 'Ahmad bin Abdullah', eventType: 'T2_COMPLETED', message: 'Murabahah execution completed', amount: '50000' },
-  { customerName: 'Fatimah binti Hassan', eventType: 'T1_COMPLETED', message: 'Qabd confirmed', amount: '75000' },
-  { customerName: 'Muhammad Razak', eventType: 'T0_COMPLETED', message: 'Wakalah agreement signed', amount: '100000' },
-  { customerName: 'Aminah binti Yusof', eventType: 'T1_FAILED', message: 'Qabd verification failed', amount: '25000' },
-  { customerName: 'Ibrahim Hassan', eventType: 'CERTIFICATE_ISSUED', message: 'Certificate issued', amount: '120000' },
-  { customerName: 'Zainab binti Omar', eventType: 'T1_COMPLETED', message: 'Qabd confirmed', amount: '85000' },
-  { customerName: 'Hafiz bin Ismail', eventType: 'T2_COMPLETED', message: 'Murabahah completed', amount: '45000' },
-  { customerName: 'Nurul Aisyah', eventType: 'T0_COMPLETED', message: 'Wakalah signed', amount: '95000' },
-];
-
-interface Transaction {
-  id: string;
-  transactionId: string;
+// Live activity interface
+interface LiveActivity {
   customerName: string;
-  customerId: string;
-  commodityType: string;
+  eventType: string;
+  message: string;
   amount: string;
-  status: string;
-  shariahStatus: string;
-  createdAt: string;
-  auditEvents: Array<{
-    stage: string;
-    status: string;
-  }>;
 }
 
-// Demo data with static dates to avoid hydration errors
-const demoTransactions: Transaction[] = [
-  {
-    id: '1',
-    transactionId: 'TXN-20250122-ABC123',
-    customerName: 'Ahmad bin Abdullah',
-    customerId: 'CUS-001',
-    commodityType: 'CPO',
-    amount: '50000',
-    status: 'COMPLETED',
-    shariahStatus: 'COMPLIANT',
-    createdAt: '2025-01-22T10:30:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'COMPLETED' },
-      { stage: 'T2', status: 'COMPLETED' },
-    ],
-  },
-  {
-    id: '2',
-    transactionId: 'TXN-20250122-DEF456',
-    customerName: 'Fatimah binti Hassan',
-    customerId: 'CUS-002',
-    commodityType: 'CPO',
-    amount: '75000',
-    status: 'PROCESSING',
-    shariahStatus: 'PENDING_REVIEW',
-    createdAt: '2025-01-22T09:15:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'IN_PROGRESS' },
-      { stage: 'T2', status: 'PENDING' },
-    ],
-  },
-  {
-    id: '3',
-    transactionId: 'TXN-20250121-GHI789',
-    customerName: 'Muhammad Razak',
-    customerId: 'CUS-003',
-    commodityType: 'CPO',
-    amount: '100000',
-    status: 'PENDING',
-    shariahStatus: 'PENDING_REVIEW',
-    createdAt: '2025-01-21T14:45:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'PENDING' },
-      { stage: 'T1', status: 'PENDING' },
-      { stage: 'T2', status: 'PENDING' },
-    ],
-  },
-  {
-    id: '4',
-    transactionId: 'TXN-20250120-JKL012',
-    customerName: 'Aminah binti Yusof',
-    customerId: 'CUS-004',
-    commodityType: 'CPO',
-    amount: '25000',
-    status: 'VIOLATION',
-    shariahStatus: 'NON_COMPLIANT',
-    createdAt: '2025-01-20T11:20:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'FAILED' },
-      { stage: 'T2', status: 'PENDING' },
-    ],
-  },
-  {
-    id: '5',
-    transactionId: 'TXN-20250119-MNO345',
-    customerName: 'Ibrahim Hassan',
-    customerId: 'CUS-005',
-    commodityType: 'CPO',
-    amount: '120000',
-    status: 'COMPLETED',
-    shariahStatus: 'COMPLIANT',
-    createdAt: '2025-01-19T16:00:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'COMPLETED' },
-      { stage: 'T2', status: 'COMPLETED' },
-    ],
-  },
-  {
-    id: '6',
-    transactionId: 'TXN-20250122-PQR678',
-    customerName: 'Zainab binti Omar',
-    customerId: 'CUS-006',
-    commodityType: 'CPO',
-    amount: '85000',
-    status: 'PROCESSING',
-    shariahStatus: 'PENDING_REVIEW',
-    createdAt: '2025-01-22T11:45:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'IN_PROGRESS' },
-      { stage: 'T2', status: 'PENDING' },
-    ],
-  },
-  {
-    id: '7',
-    transactionId: 'TXN-20250122-STU901',
-    customerName: 'Hafiz bin Ismail',
-    customerId: 'CUS-007',
-    commodityType: 'CPO',
-    amount: '45000',
-    status: 'COMPLETED',
-    shariahStatus: 'COMPLIANT',
-    createdAt: '2025-01-22T08:20:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'COMPLETED' },
-      { stage: 'T1', status: 'COMPLETED' },
-      { stage: 'T2', status: 'COMPLETED' },
-    ],
-  },
-  {
-    id: '8',
-    transactionId: 'TXN-20250121-VWX234',
-    customerName: 'Nurul Aisyah',
-    customerId: 'CUS-008',
-    commodityType: 'CPO',
-    amount: '95000',
-    status: 'PENDING',
-    shariahStatus: 'PENDING_REVIEW',
-    createdAt: '2025-01-21T15:30:00.000Z',
-    auditEvents: [
-      { stage: 'T0', status: 'PENDING' },
-      { stage: 'T1', status: 'PENDING' },
-      { stage: 'T2', status: 'PENDING' },
-    ],
-  },
-];
+type TabType = 'active' | 'completed';
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>(demoTransactions);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get('status') || '';
+
+  const [transactions] = useState<DemoTransaction[]>(demoTransactions);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [currentLiveIndex, setCurrentLiveIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabType>(
+    initialStatus === 'COMPLETED' || initialStatus === 'CANCELLED' ? 'completed' : 'active'
+  );
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  // Violation dialog
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [selectedViolation, setSelectedViolation] = useState<{
+    id: string;
+    transactionId: string;
+    customerName: string;
+    amount: string;
+    failedStage: string;
+  } | null>(null);
+  const [resolving, setResolving] = useState(false);
 
-  // Real-time live sync effect - cycles through 8 entries every 3 seconds
+  // Debounced search value
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Update status filter from URL
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentLiveIndex((prev) => (prev + 1) % 8);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    const status = searchParams.get('status');
+    if (status) {
+      setStatusFilter(status);
+      if (status === 'COMPLETED' || status === 'CANCELLED') {
+        setActiveTab('completed');
+      } else {
+        setActiveTab('active');
+      }
+    }
+  }, [searchParams]);
+
+  // Real-time live sync effect - cycles through transactions every 2 seconds
+  useEffect(() => {
+    if (transactions.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentLiveIndex((prev) => (prev + 1) % Math.min(transactions.length, 8));
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [transactions.length]);
+
+  // Generate live activity from transactions
+  const liveActivityLogs: LiveActivity[] = useMemo(() => {
+    return transactions.slice(0, 8).map((txn) => {
+      const latestEvent = txn.auditEvents?.find((e) => e.status === 'COMPLETED' || e.status === 'FAILED' || e.status === 'IN_PROGRESS');
+      const eventType = latestEvent ? `${latestEvent.stage}_${latestEvent.status}` : 'PENDING';
+      const messages: Record<string, string> = {
+        'T0_COMPLETED': 'Wakalah agreement signed',
+        'T1_COMPLETED': 'Qabd confirmed',
+        'T2_COMPLETED': 'Murabahah completed',
+        'T0_IN_PROGRESS': 'Processing Wakalah',
+        'T1_IN_PROGRESS': 'Processing Qabd',
+        'T2_IN_PROGRESS': 'Processing Liquidation',
+        'T0_FAILED': 'Wakalah failed',
+        'T1_FAILED': 'Qabd failed',
+        'T2_FAILED': 'Liquidation failed',
+      };
+      return {
+        customerName: txn.customerName,
+        eventType,
+        message: messages[eventType] || 'Processing...',
+        amount: txn.amount,
+      };
+    });
+  }, [transactions]);
 
   const currentLiveCustomer = liveActivityLogs[currentLiveIndex]?.customerName;
 
-  const fetchTransactions = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/transactions');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.transactions && data.transactions.length > 0) {
-          setTransactions(data.transactions);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setRefreshing(false);
   };
 
-  const filteredTransactions = transactions.filter((txn) => {
-    const matchesSearch =
-      txn.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      txn.transactionId.toLowerCase().includes(search.toLowerCase()) ||
-      txn.customerId.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || txn.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Memoized filtered transactions based on debounced search
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((txn) => {
+      const matchesSearch =
+        txn.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        txn.transactionId.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        txn.customerId.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchesStatus = !statusFilter || txn.status === statusFilter;
 
-  const getStatusConfig = (status: string) => {
+      // Tab filtering
+      const isActive = ['PENDING', 'PROCESSING', 'VIOLATION'].includes(txn.status);
+      const isCompleted = ['COMPLETED', 'CANCELLED'].includes(txn.status);
+      const matchesTab = activeTab === 'active' ? isActive : isCompleted;
+
+      return matchesSearch && matchesStatus && matchesTab;
+    });
+  }, [transactions, debouncedSearch, statusFilter, activeTab]);
+
+  // Memoized stats from demo data
+  const stats = useMemo(() => getDemoStats(), []);
+
+  const getStatusConfig = useCallback((status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> = {
       COMPLETED: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
       PROCESSING: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Processing' },
@@ -225,9 +142,9 @@ export default function TransactionsPage() {
       CANCELLED: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Cancelled' },
     };
     return config[status] || { bg: 'bg-slate-100', text: 'text-slate-700', label: status };
-  };
+  }, []);
 
-  const getShariahConfig = (status: string) => {
+  const getShariahConfig = useCallback((status: string) => {
     const config: Record<string, { bg: string; text: string; dot: string; label: string }> = {
       COMPLIANT: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500', label: 'Compliant' },
       PENDING_REVIEW: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Pending Review' },
@@ -235,9 +152,9 @@ export default function TransactionsPage() {
       UNDER_INVESTIGATION: { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-500', label: 'Investigating' },
     };
     return config[status] || { bg: 'bg-slate-50', text: 'text-slate-700', dot: 'bg-slate-500', label: status };
-  };
+  }, []);
 
-  const getProgressIndicator = (events: Array<{ stage: string; status: string }>) => {
+  const getProgressIndicator = useCallback((events: Array<{ stage: string; status: string }>) => {
     return (
       <div className="flex items-center gap-1">
         {events.map((event) => {
@@ -255,13 +172,37 @@ export default function TransactionsPage() {
         })}
       </div>
     );
+  }, []);
+
+  const handleResolveViolation = useCallback((txn: DemoTransaction) => {
+    const failedEvent = txn.auditEvents.find((e) => e.status === 'FAILED');
+    setSelectedViolation({
+      id: txn.id,
+      transactionId: txn.transactionId,
+      customerName: txn.customerName,
+      amount: txn.amount,
+      failedStage: failedEvent?.stage || 'Unknown',
+    });
+    setResolveDialogOpen(true);
+  }, []);
+
+  const handleResolve = async (notes: string) => {
+    if (!selectedViolation) return;
+
+    setResolving(true);
+    // Simulate resolve delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('Resolved violation:', { notes, violation: selectedViolation });
+    setResolving(false);
+    setResolveDialogOpen(false);
+    setSelectedViolation(null);
   };
 
-  const stats = {
-    total: transactions.length,
-    completed: transactions.filter(t => t.status === 'COMPLETED').length,
-    processing: transactions.filter(t => t.status === 'PROCESSING').length,
-    pending: transactions.filter(t => t.status === 'PENDING').length,
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setStatusFilter('');
+    // Update URL without the status param when changing tabs
+    router.push('/dashboard/transactions');
   };
 
   return (
@@ -273,8 +214,8 @@ export default function TransactionsPage() {
           <p className="text-slate-500 mt-1">Manage and monitor Tawarruq commodity purchases</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={fetchTransactions} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={handleRefresh} loading={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Link href="/dashboard/transactions/new">
@@ -287,23 +228,57 @@ export default function TransactionsPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <p className="text-sm text-slate-500">Total</p>
-          <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+          <p className="text-2xl font-bold text-slate-900">{stats.totalTransactions}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <p className="text-sm text-green-600">Completed</p>
-          <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+          <p className="text-2xl font-bold text-green-600">{stats.completedTransactions}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <p className="text-sm text-blue-600">Processing</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
+          <p className="text-2xl font-bold text-blue-600">{stats.processingTransactions}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <p className="text-sm text-amber-600">Pending</p>
-          <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
+          <p className="text-2xl font-bold text-amber-600">{stats.pendingTransactions - stats.processingTransactions!}</p>
         </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200">
+          <p className="text-sm text-red-600">Violations</p>
+          <p className="text-2xl font-bold text-red-600">{stats.violationTransactions}</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200">
+        <button
+          onClick={() => handleTabChange('active')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'active'
+              ? 'border-green-500 text-green-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Active
+          <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100">
+            {transactions.filter(t => ['PENDING', 'PROCESSING', 'VIOLATION'].includes(t.status)).length}
+          </span>
+        </button>
+        <button
+          onClick={() => handleTabChange('completed')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'completed'
+              ? 'border-green-500 text-green-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Completed
+          <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100">
+            {stats.completedTransactions}
+          </span>
+        </button>
       </div>
 
       {/* Filters */}
@@ -326,10 +301,18 @@ export default function TransactionsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="PROCESSING">Processing</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="VIOLATION">Violation</option>
+                {activeTab === 'active' ? (
+                  <>
+                    <option value="PENDING">Pending</option>
+                    <option value="PROCESSING">Processing</option>
+                    <option value="VIOLATION">Violation</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </>
+                )}
               </select>
               <Button variant="outline" size="icon" className="h-11 w-11">
                 <Filter className="h-4 w-4" />
@@ -339,8 +322,8 @@ export default function TransactionsPage() {
         </CardContent>
       </Card>
 
-      {/* Live Activity Banner */}
-      {liveActivityLogs[currentLiveIndex] && (
+      {/* Live Activity Banner - Only show on Active tab */}
+      {activeTab === 'active' && liveActivityLogs[currentLiveIndex] && (
         <Card className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -383,11 +366,13 @@ export default function TransactionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                Transaction List
+                {activeTab === 'active' && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                )}
+                {activeTab === 'active' ? 'Active Transactions' : 'Completed Transactions'}
               </CardTitle>
               <CardDescription>{filteredTransactions.length} transactions found</CardDescription>
             </div>
@@ -398,11 +383,11 @@ export default function TransactionsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {filteredTransactions.length === 0 ? (
             <div className="flex items-center justify-center h-48">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 rounded-full border-4 border-green-200 animate-spin border-t-green-500" />
-                <p className="text-sm text-slate-500">Loading transactions...</p>
+              <div className="text-center">
+                <p className="text-slate-500">No transactions found</p>
+                <p className="text-sm text-slate-400 mt-1">Try adjusting your filters</p>
               </div>
             </div>
           ) : (
@@ -410,24 +395,31 @@ export default function TransactionsPage() {
               {filteredTransactions.map((txn) => {
                 const statusConfig = getStatusConfig(txn.status);
                 const shariahConfig = getShariahConfig(txn.shariahStatus);
-                const isLive = txn.customerName === currentLiveCustomer;
+                const isLive = activeTab === 'active' && txn.customerName === currentLiveCustomer;
+                const isViolation = txn.status === 'VIOLATION';
 
                 return (
-                  <Link
+                  <div
                     key={txn.id}
-                    href={`/dashboard/transactions/${txn.id}/audit`}
                     className={`flex items-center gap-4 p-4 transition-all duration-500 group ${
                       isLive
                         ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-emerald-500 shadow-md'
+                        : isViolation
+                        ? 'bg-gradient-to-r from-red-50/50 to-rose-50/50 border-l-4 border-red-400'
                         : 'hover:bg-slate-50 border-l-4 border-transparent'
                     }`}
                   >
                     {/* Avatar */}
-                    <div className={`relative hidden sm:flex w-12 h-12 rounded-xl items-center justify-center text-white font-bold shadow-lg ${
-                      isLive
-                        ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/30'
-                        : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/20'
-                    }`}>
+                    <Link
+                      href={`/dashboard/transactions/${txn.id}/audit`}
+                      className={`relative hidden sm:flex w-12 h-12 rounded-xl items-center justify-center text-white font-bold shadow-lg ${
+                        isLive
+                          ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/30'
+                          : isViolation
+                          ? 'bg-gradient-to-br from-red-400 to-rose-500 shadow-red-500/30'
+                          : 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-green-500/20'
+                      }`}
+                    >
                       {txn.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       {isLive && (
                         <span className="absolute -top-1 -right-1 flex h-3 w-3">
@@ -435,12 +427,12 @@ export default function TransactionsPage() {
                           <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                         </span>
                       )}
-                    </div>
+                    </Link>
 
                     {/* Main Info */}
-                    <div className="flex-1 min-w-0">
+                    <Link href={`/dashboard/transactions/${txn.id}/audit`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
-                        <p className={`font-semibold transition-colors ${isLive ? 'text-emerald-700' : 'text-slate-900 group-hover:text-green-600'}`}>
+                        <p className={`font-semibold transition-colors ${isLive ? 'text-emerald-700' : isViolation ? 'text-red-700' : 'text-slate-900 group-hover:text-green-600'}`}>
                           {txn.customerName}
                         </p>
                         {isLive ? (
@@ -450,6 +442,9 @@ export default function TransactionsPage() {
                             {statusConfig.label}
                           </span>
                         )}
+                        {isViolation && txn.violationCount && txn.violationCount > 1 && (
+                          <Badge variant="error" className="text-xs">{txn.violationCount}x</Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-slate-500">
                         <span className="font-mono">{txn.transactionId}</span>
@@ -458,7 +453,7 @@ export default function TransactionsPage() {
                         <span className="hidden lg:inline">•</span>
                         <span className="hidden lg:inline">{txn.commodityType}</span>
                       </div>
-                    </div>
+                    </Link>
 
                     {/* Progress */}
                     <div className="hidden md:block">
@@ -477,24 +472,51 @@ export default function TransactionsPage() {
 
                     {/* Amount & Date */}
                     <div className="text-right">
-                      <p className={`font-bold ${isLive ? 'text-emerald-700' : 'text-slate-900'}`}>{formatCurrency(parseFloat(txn.amount))}</p>
+                      <p className={`font-bold ${isLive ? 'text-emerald-700' : isViolation ? 'text-red-700' : 'text-slate-900'}`}>{formatCurrency(parseFloat(txn.amount))}</p>
                       <p className="text-xs text-slate-400">{formatDateTime(txn.createdAt)}</p>
                     </div>
 
                     {/* Action */}
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className={`h-9 w-9 ${isLive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-green-600'}`}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      {isViolation && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleResolveViolation(txn);
+                          }}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Resolve
+                        </Button>
+                      )}
+                      <Link href={`/dashboard/transactions/${txn.id}/audit`}>
+                        <Button variant="ghost" size="icon" className={`h-9 w-9 ${isLive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-green-600'}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <ChevronRight className={`h-4 w-4 transition-colors ${isLive ? 'text-emerald-500' : 'text-slate-300 group-hover:text-green-500'}`} />
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Violation Resolve Dialog */}
+      <ViolationResolveDialog
+        isOpen={resolveDialogOpen}
+        onClose={() => {
+          setResolveDialogOpen(false);
+          setSelectedViolation(null);
+        }}
+        onResolve={handleResolve}
+        violation={selectedViolation}
+      />
     </div>
   );
 }
